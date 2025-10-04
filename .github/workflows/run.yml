@@ -2,8 +2,13 @@ name: 刷步数
 
 on:
   schedule:
-    - cron: '52 1,4,7,10,12,23 * * *'
+    - cron: '26,53 * * * *'   # 每小时26分与53分
   workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+  id-token: write
 
 jobs:
   build:
@@ -11,31 +16,82 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout codes
-        uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.PAT }} #此处PAT需要申请，教程详见：README
-      - name: Update system and install zsh
-        run: |
-          sudo -E apt-get -qq update
-          sudo -E apt-get install zsh -y
-          
-      - name: 初始化Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.10"
-          
-      - name: 开始
-        env:
-            CONFIG: ${{ secrets.CONFIG }}
-            AES_KEY: ${{ secrets.AES_KEY }}
-        run: |
-          pip3 install requests pytz pycryptodome
-          python3 main.py
+        uses: actions/checkout@v4
 
-      - name: persist tokens
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+
+      - name: Install deps
+        run: pip3 install requests pytz pycryptodome
+
+      # 读取仓库变量 CURRENT_BATCH（未设置则用0）
+      - name: Read CURRENT_BATCH
+        id: read_batch
+        env:
+          RAW_BATCH: ${{ vars.CURRENT_BATCH }}
         run: |
-          git config user.name github-actions
-          git config user.email github-actions@users.noreply.github.com
-          git add .
-          git commit -m "persist tokens trigger by ${{ github.event_name }}"
-          git push origin master
+          CUR="${RAW_BATCH:-0}"
+          echo "current_batch=$CUR" >> $GITHUB_OUTPUT
+          echo "CURRENT_BATCH=$CUR"
+
+      - name: Run main (current batch)
+        env:
+          CONFIG: ${{ secrets.CONFIG }}
+          CURRENT_BATCH: ${{ steps.read_batch.outputs.current_batch }}
+          BATCH_SIZE: "9"   # 每次只跑9个
+        run: python3 main.py
+
+      # 计算下一批（取模循环，避免“所有账号已执行完毕”后不回到0）
+      - name: Calc NEXT batch (mod)
+        id: calc_next
+        env:
+          CUR: ${{ steps.read_batch.outputs.current_batch }}
+          CONFIG: ${{ secrets.CONFIG }}
+          BATCH_SIZE: "9"
+        run: |
+          TOTAL_BATCHES=$(python3 -c "import os,json,math; cfg=json.loads(os.environ['CONFIG']); users=cfg.get('USER',''); bs=int(os.environ.get('BATCH_SIZE','9')); n=len([u for u in users.split('#') if u.strip()]); print((n+bs-1)//bs if n>0 else 0)")
+          echo "TOTAL_BATCHES=$TOTAL_BATCHES"
+          if [ "$TOTAL_BATCHES" -eq 0 ]; then
+            NEXT=0
+          else
+            NEXT=$(( (CUR + 1) % TOTAL_BATCHES ))
+          fi
+          echo "next_batch=$NEXT" >> $GITHUB_OUTPUT
+          echo "NEXT=$NEXT"
+
+      # 回写仓库变量 CURRENT_BATCH=NEXT （使用你的 PAT）
+      - name: Write back repo variable (CURRENT_BATCH)
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}  # 你的 PAT
+        run: |
+          OWNER_REPO="${GITHUB_REPOSITORY}"
+          OWNER="${OWNER_REPO%/*}"
+          REPO="${OWNER_REPO#*/}"
+          NAME="CURRENT_BATCH"
+          VALUE="${{ steps.calc_next.outputs.next_batch }}"
+
+          # 先查是否存在
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${OWNER}/${REPO}/actions/variables/${NAME}")
+
+          if [ "$STATUS" = "200" ]; then
+            # 更新
+            curl -s -X PATCH \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${OWNER}/${REPO}/actions/variables/${NAME}" \
+              -d "{\"name\":\"${NAME}\",\"value\":\"${VALUE}\"}"
+            echo "已更新变量 ${NAME}=${VALUE}"
+          else
+            # 创建
+            curl -s -X POST \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${OWNER}/${REPO}/actions/variables" \
+              -d "{\"name\":\"${NAME}\",\"value\":\"${VALUE}\"}"
+            echo "已创建变量 ${NAME}=${VALUE}"
+          fi

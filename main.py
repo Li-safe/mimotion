@@ -253,37 +253,79 @@ def run_single_account(total, idx, user_mi, passwd_mi):
 
 
 def execute():
+    # --- 开始集成：分批处理逻辑 ---
+    # 从环境变量中获取当前批次，如果不存在则默认为0
+    current_batch = int(os.getenv('CURRENT_BATCH', 0))
+
     user_list = users.split('#')
     passwd_list = passwords.split('#')
+
+    # 计算总批次数，每批9个账号
+    batch_size = 9
+    total_batches = math.ceil(len(user_list) / batch_size)
+
+    # 如果当前批次号已超出总批次数，说明所有账号已执行完毕
+    if current_batch >= total_batches:
+        print("所有账号已执行完毕")
+        return
+
+    # 计算当前批次的账号范围
+    start_index = current_batch * batch_size
+    end_index = min((current_batch + 1) * batch_size, len(user_list))
+    
+    # 切割出当前批次要处理的账号和密码列表
+    batch_user_list = user_list[start_index:end_index]
+    batch_passwd_list = passwd_list[start_index:end_index]
+    # --- 分批处理逻辑集成结束 ---
+
+    # --- 原有逻辑，但现在操作的是当前批次的列表 ---
     exec_results = []
-    if len(user_list) == len(passwd_list):
-        idx, total = 0, len(user_list)
+    if len(batch_user_list) == len(batch_passwd_list):
+        # 使用当前批次的数量作为总数
+        idx, total = 0, len(batch_user_list) 
+        
         if use_concurrent:
             import concurrent.futures
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                exec_results = executor.map(lambda x: run_single_account(total, x[0], *x[1]),
-                                            enumerate(zip(user_list, passwd_list)))
+                # 将 lambda 函数应用于当前批次的账号
+                exec_results = list(executor.map(lambda x: run_single_account(total, x[0], *x[1]),
+                                                 enumerate(zip(batch_user_list, batch_passwd_list))))
         else:
-            for user_mi, passwd_mi in zip(user_list, passwd_list):
+            # 遍历当前批次的账号
+            for user_mi, passwd_mi in zip(batch_user_list, batch_passwd_list):
                 exec_results.append(run_single_account(total, idx, user_mi, passwd_mi))
                 idx += 1
                 if idx < total:
                     # 每个账号之间间隔一定时间请求一次，避免接口请求过于频繁导致异常
                     time.sleep(sleep_seconds)
+        
         if encrypt_support:
             persist_user_tokens()
+            
         success_count = 0
         push_results = []
         for result in exec_results:
             push_results.append(result)
             if result['success'] is True:
                 success_count += 1
+                
+        # 摘要信息也更新为当前批次的信息
         summary = f"\n执行账号总数{total}，成功：{success_count}，失败：{total - success_count}"
         print(summary)
         push_to_push_plus(push_results, summary)
+        
+        # --- 开始集成：批次完成后的更新逻辑 ---
+        # 执行完成后更新当前批次号
+        next_batch = current_batch + 1
+        os.environ['CURRENT_BATCH'] = str(next_batch)  # 更新当前批次
+        print(f"本批次执行完毕，已更新批次号至 {next_batch}，下次将从此批次开始。")
+        # --- 批次更新逻辑集成结束 ---
+
     else:
-        print(f"账号数长度[{len(user_list)}]和密码数长度[{len(passwd_list)}]不匹配，跳过执行")
+        # 此处的错误提示也改为当前批次的信息
+        print(f"当前批次账号数长度[{len(batch_user_list)}]和密码数长度[{len(batch_passwd_list)}]不匹配，跳过执行")
         exit(1)
+
 
 
 def prepare_user_tokens() -> dict:

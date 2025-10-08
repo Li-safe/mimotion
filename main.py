@@ -63,6 +63,19 @@ def validate_config(config):
         logger.error("步数不能为负数")
         return False
     
+    # 验证重试配置
+    enable_retry = config.get('ENABLE_RETRY', 'True').lower() == 'true'
+    max_retry_rounds = get_int_value_default(config, 'MAX_RETRY_ROUNDS', 2)
+    retry_threshold = get_int_value_default(config, 'RETRY_THRESHOLD', 3)
+    
+    if max_retry_rounds < 1 or max_retry_rounds > 5:
+        logger.error(f"最大重试轮数({max_retry_rounds})必须在1-5之间")
+        return False
+    
+    if retry_threshold < 1 or retry_threshold > 10:
+        logger.error(f"重试阈值({retry_threshold})必须在1-10之间")
+        return False
+    
     logger.info("配置验证通过")
     return True
 
@@ -355,6 +368,74 @@ def execute():
                 if idx < total:
                     # 每个账号之间间隔一定时间请求一次，避免接口请求过于频繁导致异常
                     time.sleep(sleep_seconds)
+        
+        # --- 新增：失败账号单独重试逻辑 ---
+        enable_retry = config.get('ENABLE_RETRY', 'True').lower() == 'true'
+        max_retry_rounds = get_int_value_default(config, 'MAX_RETRY_ROUNDS', 2)
+        retry_threshold = get_int_value_default(config, 'RETRY_THRESHOLD', 3)
+        
+        if enable_retry:
+            failed_accounts = [result for result in exec_results if not result['success']]
+            if failed_accounts:
+                print(f"\n检测到 {len(failed_accounts)} 个失败账号，开始单独重试...")
+                logger.info(f"开始重试 {len(failed_accounts)} 个失败账号")
+                
+                # 为失败账号创建重试列表
+                retry_accounts = []
+                for result in failed_accounts:
+                    # 找到对应的密码
+                    user_index = batch_user_list.index(result['user'])
+                    retry_accounts.append((result['user'], batch_passwd_list[user_index]))
+                
+                # 多轮重试逻辑
+                current_failed = failed_accounts.copy()
+                total_retry_success = 0
+                
+                for round_num in range(1, max_retry_rounds + 1):
+                    if not current_failed:
+                        break
+                    
+                    # 检查是否超过重试阈值
+                    if len(current_failed) > retry_threshold:
+                        print(f"失败账号数量({len(current_failed)})超过重试阈值({retry_threshold})，跳过第{round_num}轮重试")
+                        logger.info(f"失败账号数量超过阈值，跳过第{round_num}轮重试")
+                        break
+                    
+                    print(f"\n第{round_num}轮重试开始，处理 {len(current_failed)} 个失败账号...")
+                    logger.info(f"开始第{round_num}轮重试，处理 {len(current_failed)} 个失败账号")
+                    
+                    # 重试失败账号
+                    retry_results = []
+                    for i, (user_mi, passwd_mi) in enumerate([(result['user'], batch_passwd_list[batch_user_list.index(result['user'])]) for result in current_failed]):
+                        print(f"第{round_num}轮重试 [{i+1}/{len(current_failed)}]: {desensitize_user_name(user_mi)}")
+                        retry_result = run_single_account(len(current_failed), i, user_mi, passwd_mi)
+                        retry_results.append(retry_result)
+                        
+                        # 重试间隔（每轮递增）
+                        if i < len(current_failed) - 1:
+                            time.sleep(sleep_seconds * (1 + (round_num - 1) * 0.5))
+                    
+                    # 更新执行结果
+                    for i, retry_result in enumerate(retry_results):
+                        for j, original_result in enumerate(exec_results):
+                            if original_result['user'] == retry_result['user']:
+                                exec_results[j] = retry_result
+                                break
+                    
+                    round_success = sum(1 for result in retry_results if result['success'])
+                    total_retry_success += round_success
+                    current_failed = [result for result in retry_results if not result['success']]
+                    
+                    print(f"第{round_num}轮重试完成：{round_success} 个成功，{len(retry_results) - round_success} 个仍然失败")
+                    logger.info(f"第{round_num}轮重试结果：{round_success} 个成功，{len(retry_results) - round_success} 个失败")
+                    
+                    # 如果所有账号都成功了，提前结束
+                    if not current_failed:
+                        break
+                
+                print(f"\n重试总结：总共 {total_retry_success} 个账号重试成功")
+                logger.info(f"重试总结：总共 {total_retry_success} 个账号重试成功")
+        # --- 失败账号重试逻辑结束 ---
         
         if encrypt_support:
             persist_user_tokens()

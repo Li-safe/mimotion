@@ -10,15 +10,61 @@ import random
 import re
 import time
 import os
+import logging
 
 import requests
 from util.aes_help import  encrypt_data, decrypt_data
 import util.zepp_helper as zeppHelper
 
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('mimotion.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
 # 获取默认值转int
 def get_int_value_default(_config: dict, _key, default):
     _config.setdefault(_key, default)
     return int(_config.get(_key))
+
+
+# 验证配置完整性
+def validate_config(config):
+    """验证配置的完整性和有效性"""
+    required_fields = ['USER', 'PWD']
+    missing_fields = [field for field in required_fields if not config.get(field)]
+    
+    if missing_fields:
+        logger.error(f"缺少必要配置字段: {missing_fields}")
+        return False
+    
+    # 验证账号密码数量匹配
+    users = config.get('USER', '').split('#')
+    passwords = config.get('PWD', '').split('#')
+    
+    if len(users) != len(passwords):
+        logger.error(f"账号数量({len(users)})与密码数量({len(passwords)})不匹配")
+        return False
+    
+    # 验证步数范围
+    min_step = get_int_value_default(config, 'MIN_STEP', 18000)
+    max_step = get_int_value_default(config, 'MAX_STEP', 25000)
+    
+    if min_step >= max_step:
+        logger.error(f"最小步数({min_step})不能大于等于最大步数({max_step})")
+        return False
+    
+    if min_step < 0 or max_step < 0:
+        logger.error("步数不能为负数")
+        return False
+    
+    logger.info("配置验证通过")
+    return True
 
 
 # 获取当前时间对应的最大和最小步数
@@ -231,28 +277,38 @@ def push_to_push_plus(exec_results, summary):
         push_plus(f"{format_now()} 刷步数通知", html)
 
 
-def run_single_account(total, idx, user_mi, passwd_mi):
+def run_single_account(total, idx, user_mi, passwd_mi, max_retries=3):
     idx_info = ""
     if idx is not None:
         idx_info = f"[{idx + 1}/{total}]"
     log_str = f"[{format_now()}]\n{idx_info}账号：{desensitize_user_name(user_mi)}\n"
-    try:
-        runner = MiMotionRunner(user_mi, passwd_mi)
-        exec_msg, success = runner.login_and_post_step(min_step, max_step)
-        log_str += runner.log_str
-        log_str += f'{exec_msg}\n'
-        exec_result = {"user": user_mi, "success": success,
-                       "msg": exec_msg}
-    except:
-        log_str += f"执行异常:{traceback.format_exc()}\n"
-        log_str += traceback.format_exc()
-        exec_result = {"user": user_mi, "success": False,
-                       "msg": f"执行异常:{traceback.format_exc()}"}
+    
+    for attempt in range(max_retries):
+        try:
+            runner = MiMotionRunner(user_mi, passwd_mi)
+            exec_msg, success = runner.login_and_post_step(min_step, max_step)
+            log_str += runner.log_str
+            log_str += f'{exec_msg}\n'
+            exec_result = {"user": user_mi, "success": success,
+                           "msg": exec_msg}
+            break
+        except Exception as e:
+            if attempt < max_retries - 1:
+                log_str += f"第{attempt + 1}次尝试失败，{max_retries - attempt - 1}次重试机会: {str(e)}\n"
+                time.sleep(2)  # 重试前等待2秒
+            else:
+                log_str += f"执行异常（已重试{max_retries}次）:{traceback.format_exc()}\n"
+                exec_result = {"user": user_mi, "success": False,
+                               "msg": f"执行异常（已重试{max_retries}次）:{str(e)}"}
+    
     print(log_str)
     return exec_result
 
 
 def execute():
+    start_time = time.time()
+    logger.info("开始执行刷步数任务")
+    
     # --- 开始集成：分批处理逻辑 ---
     # 从环境变量中获取当前批次，如果不存在则默认为0
     current_batch = int(os.getenv('CURRENT_BATCH', 0))
@@ -264,10 +320,11 @@ def execute():
     batch_size = 9
     total_batches = math.ceil(len(user_list) / batch_size)
 
-    # 如果当前批次号已超出总批次数，说明所有账号已执行完毕
+    # 如果当前批次号已超出总批次数，重置为0开始新的循环
     if current_batch >= total_batches:
-        print("所有账号已执行完毕")
-        return
+        print("所有账号已执行完毕，重置批次号从头开始循环")
+        current_batch = 0
+        os.environ['CURRENT_BATCH'] = '0'  # 重置批次号
 
     # 计算当前批次的账号范围
     start_index = current_batch * batch_size
@@ -302,16 +359,16 @@ def execute():
         if encrypt_support:
             persist_user_tokens()
             
-        success_count = 0
-        push_results = []
-        for result in exec_results:
-            push_results.append(result)
-            if result['success'] is True:
-                success_count += 1
+        success_count = sum(1 for result in exec_results if result['success'] is True)
+        push_results = exec_results.copy()  # 直接复制，避免重复遍历
                 
+        # 计算执行时间
+        execution_time = time.time() - start_time
+        
         # 摘要信息也更新为当前批次的信息
-        summary = f"\n执行账号总数{total}，成功：{success_count}，失败：{total - success_count}"
+        summary = f"\n执行账号总数{total}，成功：{success_count}，失败：{total - success_count}，耗时：{execution_time:.2f}秒"
         print(summary)
+        logger.info(f"批次执行完成 - 成功：{success_count}，失败：{total - success_count}，耗时：{execution_time:.2f}秒")
         push_to_push_plus(push_results, summary)
         
         # --- 开始集成：批次完成后的更新逻辑 ---
@@ -375,9 +432,18 @@ if __name__ == "__main__":
         config = dict()
         try:
             config = dict(json.loads(os.environ.get("CONFIG")))
-        except:
-            print("CONFIG格式不正确，请检查Secret配置，请严格按照JSON格式：使用双引号包裹字段和值，逗号不能多也不能少")
+        except json.JSONDecodeError as e:
+            logger.error(f"CONFIG JSON格式错误: {e}")
+            print("请检查Secret配置，严格按照JSON格式：使用双引号包裹字段和值，逗号不能多也不能少")
+            exit(1)
+        except Exception as e:
+            logger.error(f"CONFIG解析异常: {e}")
             traceback.print_exc()
+            exit(1)
+        
+        # 验证配置
+        if not validate_config(config):
+            logger.error("配置验证失败，程序退出")
             exit(1)
         PUSH_PLUS_TOKEN = config.get('PUSH_PLUS_TOKEN')
         PUSH_PLUS_HOUR = config.get('PUSH_PLUS_HOUR')

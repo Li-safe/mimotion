@@ -45,22 +45,42 @@ jobs:
 
       # --- 修改：将 CURRENT_BATCH 作为环境变量传递给 Python 脚本 ---
       - name: 开始
+        id: run_script
         env:
             CONFIG: ${{ secrets.CONFIG }}
             AES_KEY: ${{ secrets.AES_KEY }}
             CURRENT_BATCH: ${{ steps.read_batch.outputs.current_batch }} # <-- 传递批次号
         run: |
-          python3 main.py
+          python3 main.py > script_output.log 2>&1
+          echo "Python脚本执行完成"
+
+      # --- 新增：检测Python脚本是否执行了批次重置 ---
+      - name: 检测批次重置
+        id: detect_reset
+        run: |
+          # 检查Python脚本输出中是否包含重置信息
+          if grep -q "所有账号已执行完毕，重置批次号从头开始循环" script_output.log; then
+            echo "检测到批次重置"
+            echo "batch_reset=true" >> $GITHUB_OUTPUT
+            echo "next_batch=1" >> $GITHUB_OUTPUT
+          else
+            echo "未检测到批次重置"
+            echo "batch_reset=false" >> $GITHUB_OUTPUT
+            # 计算下一批次号
+            CUR=${{ steps.read_batch.outputs.current_batch }}
+            NEXT=$((CUR + 1))
+            echo "next_batch=$NEXT" >> $GITHUB_OUTPUT
+          fi
 
       # --- 新增：计算并回写下一批的批次号 ---
       - name: 计算下一批
         id: calc_next
-        env:
-          CUR: ${{ steps.read_batch.outputs.current_batch }}
         run: |
-          NEXT=$((CUR + 1))
-          echo "next_batch=$NEXT" >> $GITHUB_OUTPUT
-          echo "下一批次: $NEXT"
+          if [ "${{ steps.detect_reset.outputs.batch_reset }}" = "true" ]; then
+            echo "批次已重置，下一批次: ${{ steps.detect_reset.outputs.next_batch }}"
+          else
+            echo "正常递增，下一批次: ${{ steps.detect_reset.outputs.next_batch }}"
+          fi
 
       - name: 回写仓库变量（CURRENT_BATCH）
         uses: actions/github-script@v7
@@ -70,7 +90,7 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const name = 'CURRENT_BATCH';
-            const value = '${{ steps.calc_next.outputs.next_batch }}';
+            const value = '${{ steps.detect_reset.outputs.next_batch }}';
 
             try {
               await github.rest.actions.updateRepoVariable({ owner, repo, name, value });

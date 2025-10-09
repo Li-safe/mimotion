@@ -1,91 +1,61 @@
-2025-10-09 19:54:21,621 - INFO - 配置验证通过
-2025-10-09 19:54:21,621 - INFO - 开始执行刷步数任务
-2025-10-09 20:09:58,790 - INFO - 开始重试 1 个失败账号
-2025-10-09 20:09:58,790 - INFO - 开始第1轮重试，处理 1 个失败账号
-2025-10-09 20:09:59,184 - INFO - 第1轮重试结果：0 个成功，1 个失败
-2025-10-09 20:09:59,184 - INFO - 开始第2轮重试，处理 1 个失败账号
-2025-10-09 20:09:59,537 - INFO - 第2轮重试结果：0 个成功，1 个失败
-2025-10-09 20:09:59,538 - INFO - 重试总结：总共 0 个账号重试成功
-2025-10-09 20:09:59,540 - INFO - 批次执行完成 - 成功：8，失败：1，耗时：937.92秒
+2025-10-09 20:30:46,502 - INFO - 配置验证通过
+2025-10-09 20:30:46,502 - INFO - 开始执行刷步数任务
+2025-10-09 20:32:28,981 - INFO - 批次执行完成 - 成功：9，失败：0，耗时：102.48秒
 多账号执行间隔：10.0
-[2025-10-10 03:54:21]
-[1/9]账号：136****.com
+[2025-10-10 04:30:46]
+[1/9]账号：wt1****.com
 使用加密保存的app_token
-已设置为随机步数范围(1772~3545) 随机值:2411
-修改步数（2411）[success]
+已设置为随机步数范围(2045~4090) 随机值:3907
+修改步数（3907）[success]
 
-[2025-10-10 03:54:34]
-[2/9]账号：347****.com
+[2025-10-10 04:30:59]
+[2/9]账号：158****.com
 使用加密保存的app_token
-已设置为随机步数范围(1772~3545) 随机值:2912
-修改步数（2912）[success]
+已设置为随机步数范围(2045~4090) 随机值:2999
+修改步数（2999）[success]
 
-[2025-10-10 03:54:46]
-[3/9]账号：122****.com
-第1次尝试失败，2次重试机会: HTTPSConnectionPool(host='api-mifit-cn.huami.com', port=443): Max retries exceeded with url: /v1/data/band_data.json?&t=1760039687748&r=ac85c160-45d8-4ea9-a6bd-f79359ddb4d2 (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x7fbf6b157580>, 'Connection to api-mifit-cn.huami.com timed out. (connect timeout=None)'))
-第2次尝试失败，1次重试机会: HTTPSConnectionPool(host='api-mifit-cn3.zepp.com', port=443): Max retries exceeded with url: /huami.health.getUserInfo.json?r=00b7912b-790a-4552-81b1-3742f9dd1e76&userid=1188760659&appid=428135909242707968&channel=Normal&country=CN&cv=50818_6.14.0&device=android_31&device_type=android_phone&lang=zh_CN&timezone=Asia%2FShanghai&v=2.0 (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x7fbf6c39c1c0>, 'Connection to api-mifit-cn3.zepp.com timed out. (connect timeout=None)'))
+[2025-10-10 04:31:12]
+[3/9]账号：191****.com
 使用加密保存的app_token
-已设置为随机步数范围(1772~3545) 随机值:2231
-修改步数（2231）[success]
+已设置为随机步数范围(2045~4090) 随机值:3432
+修改步数（3432）[success]
 
-[2025-10-10 03:59:31]
-[4/9]账号：867****.com
+[2025-10-10 04:31:24]
+[4/9]账号：305****.com
 使用加密保存的app_token
-已设置为随机步数范围(1772~3545) 随机值:2125
-修改步数（2125）[success]
+已设置为随机步数范围(2045~4090) 随机值:3976
+修改步数（3976）[success]
 
-[2025-10-10 03:59:43]
-[5/9]账号：197****.com
+[2025-10-10 04:31:37]
+[5/9]账号：392****.com
 使用加密保存的app_token
-已设置为随机步数范围(1772~3545) 随机值:1856
-修改步数（1856）[success]
+已设置为随机步数范围(2045~4090) 随机值:3266
+修改步数（3266）[success]
 
-[2025-10-10 04:00:15]
-[6/9]账号：378****.com
-第1次尝试失败，2次重试机会: HTTPSConnectionPool(host='api-mifit-cn3.zepp.com', port=443): Max retries exceeded with url: /huami.health.getUserInfo.json?r=00b7912b-790a-4552-81b1-3742f9dd1e76&userid=1188760659&appid=428135909242707968&channel=Normal&country=CN&cv=50818_6.14.0&device=android_31&device_type=android_phone&lang=zh_CN&timezone=Asia%2FShanghai&v=2.0 (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x7fbf6b1571c0>, 'Connection to api-mifit-cn3.zepp.com timed out. (connect timeout=None)'))
-第2次尝试失败，1次重试机会: HTTPSConnectionPool(host='api-mifit-cn3.zepp.com', port=443): Max retries exceeded with url: /huami.health.getUserInfo.json?r=00b7912b-790a-4552-81b1-3742f9dd1e76&userid=1188760659&appid=428135909242707968&channel=Normal&country=CN&cv=50818_6.14.0&device=android_31&device_type=android_phone&lang=zh_CN&timezone=Asia%2FShanghai&v=2.0 (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x7fbf6b1560b0>, 'Connection to api-mifit-cn3.zepp.com timed out. (connect timeout=None)'))
+[2025-10-10 04:31:49]
+[6/9]账号：342****.com
 使用加密保存的app_token
-已设置为随机步数范围(1772~3545) 随机值:3311
-修改步数（3311）[success]
+已设置为随机步数范围(2045~4090) 随机值:2405
+修改步数（2405）[success]
 
-[2025-10-10 04:04:59]
-[7/9]账号：294****.com
+[2025-10-10 04:32:01]
+[7/9]账号：333****.com
 使用加密保存的app_token
-已设置为随机步数范围(1772~3545) 随机值:2209
-修改步数（2209）[success]
+已设置为随机步数范围(2045~4090) 随机值:3617
+修改步数（3617）[success]
 
-[2025-10-10 04:05:11]
-[8/9]账号：352****.com
-第1次尝试失败，2次重试机会: HTTPSConnectionPool(host='api-mifit-cn.huami.com', port=443): Max retries exceeded with url: /v1/data/band_data.json?&t=1760040312632&r=ea6b30f1-4876-4c38-be2b-d464acdc4743 (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x7fbf6b155db0>, 'Connection to api-mifit-cn.huami.com timed out. (connect timeout=None)'))
-第2次尝试失败，1次重试机会: HTTPSConnectionPool(host='api-mifit-cn3.zepp.com', port=443): Max retries exceeded with url: /huami.health.getUserInfo.json?r=00b7912b-790a-4552-81b1-3742f9dd1e76&userid=1188760659&appid=428135909242707968&channel=Normal&country=CN&cv=50818_6.14.0&device=android_31&device_type=android_phone&lang=zh_CN&timezone=Asia%2FShanghai&v=2.0 (Caused by ConnectTimeoutError(<urllib3.connection.HTTPSConnection object at 0x7fbf6b154f40>, 'Connection to api-mifit-cn3.zepp.com timed out. (connect timeout=None)'))
+[2025-10-10 04:32:14]
+[8/9]账号：297****.com
 使用加密保存的app_token
-已设置为随机步数范围(1772~3545) 随机值:2457
-修改步数（2457）[success]
+已设置为随机步数范围(2045~4090) 随机值:3043
+修改步数（3043）[success]
 
-[2025-10-10 04:09:58]
-[9/9]账号：142****.com
-登录获取accessToken失败：获取accessToken失败 401登陆失败！
+[2025-10-10 04:32:26]
+[9/9]账号：174****.com
+使用加密保存的app_token
+已设置为随机步数范围(2045~4090) 随机值:4065
+修改步数（4065）[success]
 
 
-检测到 1 个失败账号，开始单独重试...
-
-第1轮重试开始，处理 1 个失败账号...
-第1轮重试 [1/1]: 142****.com
-[2025-10-10 04:09:58]
-[1/1]账号：142****.com
-登录获取accessToken失败：获取accessToken失败 401登陆失败！
-
-第1轮重试完成：0 个成功，1 个仍然失败
-
-第2轮重试开始，处理 1 个失败账号...
-第2轮重试 [1/1]: 142****.com
-[2025-10-10 04:09:59]
-[1/1]账号：142****.com
-登录获取accessToken失败：获取accessToken失败 401登陆失败！
-
-第2轮重试完成：0 个成功，1 个仍然失败
-
-重试总结：总共 0 个账号重试成功
-
-执行账号总数9，成功：8，失败：1，耗时：937.92秒
-本批次执行完毕，已更新批次号至 18，下次将从此批次开始。
+执行账号总数9，成功：9，失败：0，耗时：102.48秒
+本批次执行完毕，已更新批次号至 19，下次将从此批次开始。

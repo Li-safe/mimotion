@@ -330,7 +330,7 @@ def execute():
     passwd_list = passwords.split('#')
 
     # 计算总批次数，每批9个账号
-    batch_size = 9
+    batch_size = 30
     total_batches = math.ceil(len(user_list) / batch_size)
 
     # 如果当前批次号已超出总批次数，重置为0开始新的循环
